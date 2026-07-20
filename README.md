@@ -58,16 +58,54 @@ After it finishes: `source ~/.zshrc` (or open a new terminal), then try
 
 ```bash
 claude                                              # normal, cloud, bare metal
-claude --sandbox                                    # cloud model, Docker-isolated
-claude --local                                      # local model (qwen3-coder), bare metal
+claude --sandbox                                    # cloud model, Docker-isolated, bypass permissions
+claude --local                                      # local model (qwen3-coder), bare metal, --bare
 claude --local --model qwen2.5-coder:14b             # local model, different model
-claude --local --sandbox                            # local model, Docker-isolated
+claude --local --sandbox                            # local model, Docker-isolated, --bare + bypass permissions
 ```
 
-All native `claude` flags (`--resume`, etc.) pass through normally, e.g.:
+All native `claude` flags (`--resume`, `--permission-mode <mode>`, etc.) pass
+through normally, e.g.:
 ```bash
 claude --sandbox --resume
+claude --local --permission-mode plan
 ```
+
+### Flags and defaults
+
+| Flag | Effect | Default |
+|---|---|---|
+| `--local` | Route to a local Ollama model instead of the cloud API | off |
+| `--sandbox` | Run inside the `claude-local-sandbox` Docker container | off |
+| `--model <name>` | Model to use (only meaningful with `--local`) | `qwen3-coder` |
+| `--no-bare` | Disable `--bare` (tools off) — see below | n/a |
+| `--no-skip-permissions` | Disable `--dangerously-skip-permissions` — see below | n/a |
+
+**`--bare` (Claude Code's minimal-tools mode) is on by default whenever
+`--local` is used** (`claude --local` and `claude --local --sandbox`), since
+local models are much slower once Claude Code's full tool schema is loaded.
+Opt out with `--no-bare` if you want tools available on a local model:
+```bash
+claude --local --no-bare
+claude --local --sandbox --no-bare
+```
+
+**`--dangerously-skip-permissions` is on by default whenever `--sandbox` is
+used** (`claude --sandbox` and `claude --local --sandbox`), since the Docker
+container provides a real filesystem boundary that makes bypass mode
+reasonable there. It is **not** applied to bare-metal `--local` (no container
+boundary, so normal permission prompting still applies). Opt out with
+`--no-skip-permissions`:
+```bash
+claude --sandbox --no-skip-permissions
+claude --local --sandbox --no-skip-permissions
+```
+
+**Default permission mode / plan mode:** use the native `--permission-mode`
+flag (accepts `default`, `acceptEdits`, `plan`, `bypassPermissions`), e.g.
+`claude --local --permission-mode plan`. Note this may conflict with
+`--dangerously-skip-permissions` if both are active in a sandboxed mode —
+skip-permissions takes precedence when both are present.
 
 ### First run of `--sandbox`
 
@@ -101,3 +139,7 @@ container** depending on where your session state actually persists. See the
   first created in.
 - **`--model` is only meaningful with `--local`.** Passing it without
   `--local` is silently ignored.
+- **`--bare` and `--dangerously-skip-permissions` have different defaults per
+  mode** — see the flags table under Usage. Worth double-checking with
+  `claude --local --help`-equivalent review of the function source if you're
+  ever unsure what a given invocation will actually run.

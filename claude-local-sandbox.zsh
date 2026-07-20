@@ -10,9 +10,14 @@
 #
 # USAGE:
 #   claude [native claude args]                                     # normal, cloud, bare metal
-#   claude --sandbox [native claude args]                           # cloud model, run inside Docker
-#   claude --local [--model <name>] [native claude args]            # local model (Ollama), bare metal
-#   claude --local --sandbox [--model <name>] [native claude args]  # local model, Docker
+#   claude --sandbox [native claude args]                           # cloud model, Docker, bypass permissions on
+#   claude --local [--model <name>] [native claude args]            # local model, bare metal, --bare on
+#   claude --local --sandbox [--model <name>] [native claude args]  # local model, Docker, --bare + bypass permissions on
+#
+# DEFAULTS (see README for full details):
+#   --bare is ON by default for --local and --local --sandbox. Opt out: --no-bare
+#   --dangerously-skip-permissions is ON by default for --sandbox and
+#     --local --sandbox (never for bare-metal --local). Opt out: --no-skip-permissions
 #
 # EXAMPLES:
 #   claude --resume
@@ -21,20 +26,14 @@
 #   claude --local --model qwen2.5-coder:14b
 #   claude --local --sandbox
 #   claude --local --sandbox --model qwen2.5-coder:14b --resume
-#
-# NOTES:
-#   - --sandbox (cloud) mounts your host ~/.claude and ~/.claude.json so it can
-#     reuse your existing login. This requires the Dockerfile's `agent` user to
-#     be built with the same UID as your host user (see Dockerfile comments).
-#   - --local and --local --sandbox always run with --dangerously-skip-permissions.
-#     This is opt-in: only triggered by --local, never by plain `claude` or
-#     `claude --sandbox` alone.
-#   - --model only has an effect when combined with --local; it's silently
-#     ignored otherwise.
+#   claude --local --no-bare
+#   claude --sandbox --no-skip-permissions
 claude() {
   local use_local=""
   local use_sandbox=""
   local model="qwen3-coder"
+  local bare_flag="--bare"
+  local skip_perms="1"
   local native_args=()
 
   while [[ $# -gt 0 ]]; do
@@ -51,6 +50,14 @@ claude() {
         model="$2"
         shift 2
         ;;
+      --no-bare)
+        bare_flag=""
+        shift
+        ;;
+      --no-skip-permissions)
+        skip_perms=""
+        shift
+        ;;
       *)
         native_args+=("$1")
         shift
@@ -58,31 +65,34 @@ claude() {
     esac
   done
 
+  local perm_flag=""
+  [[ -n "$skip_perms" && -n "$use_sandbox" ]] && perm_flag="--dangerously-skip-permissions"
+
   if [[ -n "$use_local" && -n "$use_sandbox" ]]; then
-    # Local model, Docker-sandboxed
+    # Local model, Docker-sandboxed — bare + skip-permissions on by default
     docker run -it --rm \
       -v "$(pwd)":/work \
       -e ANTHROPIC_BASE_URL=http://host.docker.internal:11434 \
       -e ANTHROPIC_AUTH_TOKEN=ollama \
       -e ANTHROPIC_API_KEY="" \
       -e CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
-      claude-local-sandbox --dangerously-skip-permissions --model "$model" "${native_args[@]}"
+      claude-local-sandbox $perm_flag $bare_flag --model "$model" "${native_args[@]}"
 
   elif [[ -n "$use_local" ]]; then
-    # Local model, bare metal
+    # Local model, bare metal — bare on by default, skip-permissions NOT applied (not sandboxed)
     ANTHROPIC_BASE_URL=http://localhost:11434 \
     ANTHROPIC_AUTH_TOKEN=ollama \
     ANTHROPIC_API_KEY="" \
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
-    command claude --model "$model" "${native_args[@]}"
+    command claude $bare_flag --model "$model" "${native_args[@]}"
 
   elif [[ -n "$use_sandbox" ]]; then
-    # Cloud model, Docker-sandboxed — reuses your existing Claude login
+    # Cloud model, Docker-sandboxed — skip-permissions on by default, bare NOT applied
     docker run -it --rm \
       -v "$(pwd)":/work \
       -v ~/.claude:/home/agent/.claude \
       -v ~/.claude.json:/home/agent/.claude.json \
-      claude-local-sandbox "${native_args[@]}"
+      claude-local-sandbox $perm_flag "${native_args[@]}"
 
   else
     # Normal — untouched
