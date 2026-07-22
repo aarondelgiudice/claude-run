@@ -30,7 +30,7 @@ if ! command -v ollama >/dev/null 2>&1; then
       exit 1
     fi
     brew install --cask ollama
-    open -a Ollama
+    open -a /Applications/Ollama.app 2>/dev/null || echo "NOTE: couldn't auto-launch Ollama yet — you may need to open it manually the first time."
     echo "Waiting for Ollama to start..."
     sleep 5
   else
@@ -52,7 +52,7 @@ if pgrep -x "Ollama" >/dev/null 2>&1; then
   osascript -e 'quit app "Ollama"' 2>/dev/null || true
   sleep 2
 fi
-open -a Ollama 2>/dev/null || echo "NOTE: couldn't auto-launch the Ollama app — start it manually."
+open -a /Applications/Ollama.app 2>/dev/null || echo "NOTE: couldn't auto-launch the Ollama app — start it manually."
 sleep 3
 
 # --- 2. Check UID match against Dockerfile ---
