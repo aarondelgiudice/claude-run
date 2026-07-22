@@ -11,12 +11,14 @@
 # USAGE:
 #   claude [native claude args]                                     # normal, cloud
 #   claude --sandbox [native claude args]                           # cloud model, Docker, bypass permissions on
-#   claude --local [--model <name>] [native claude args]            # local model, --bare on
-#   claude --local --sandbox [--model <name>] [native claude args]  # local model, Docker, --bare + bypass permissions on
+#   claude --local [--model <name>] [native claude args]            # local model, --bare + --exclude-dynamic-system-prompt-sections on
+#   claude --local --sandbox [--model <name>] [native claude args]  # local model, Docker, --bare + --exclude-dynamic-system-prompt-sections + bypass permissions on
 #
 # DEFAULTS (see README for full details):
 #   --bare (skips most tool calls to run faster) is ON by default for --local
 #     and --local --sandbox. Opt out: --no-bare
+#   --exclude-dynamic-system-prompt-sections is ON by default for --local and
+#     --local --sandbox. Opt out: --no-exclude-dynamic-system-prompt-sections
 #   --dangerously-skip-permissions is ON by default for --sandbox and
 #     --local --sandbox (never for --local without --sandbox). Opt out: --no-skip-permissions
 #
@@ -28,12 +30,14 @@
 #   claude --local --sandbox
 #   claude --local --sandbox --model qwen2.5-coder:14b --resume
 #   claude --local --no-bare
+#   claude --local --no-exclude-dynamic-system-prompt-sections
 #   claude --sandbox --no-skip-permissions
 claude() {
   local use_local=""
   local use_sandbox=""
   local model="qwen3-coder"
   local bare_flag="--bare"
+  local exclude_dynamic_flag="--exclude-dynamic-system-prompt-sections"
   local skip_perms="1"
   local native_args=()
 
@@ -55,6 +59,10 @@ claude() {
         bare_flag=""
         shift
         ;;
+      --no-exclude-dynamic-system-prompt-sections)
+        exclude_dynamic_flag=""
+        shift
+        ;;
       --no-skip-permissions)
         skip_perms=""
         shift
@@ -70,25 +78,25 @@ claude() {
   [[ -n "$skip_perms" && -n "$use_sandbox" ]] && perm_flag="--dangerously-skip-permissions"
 
   if [[ -n "$use_local" && -n "$use_sandbox" ]]; then
-    # Local model, Docker-sandboxed — bare + skip-permissions on by default
+    # Local model, Docker-sandboxed — bare + exclude-dynamic-system-prompt-sections + skip-permissions on by default
     docker run -it --rm \
       -v "$(pwd)":/work \
       -e ANTHROPIC_BASE_URL=http://host.docker.internal:11434 \
       -e ANTHROPIC_AUTH_TOKEN=ollama \
       -e ANTHROPIC_API_KEY="" \
       -e CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
-      claude-local-sandbox $perm_flag $bare_flag --model "$model" "${native_args[@]}"
+      claude-local-sandbox $perm_flag $bare_flag $exclude_dynamic_flag --model "$model" "${native_args[@]}"
 
   elif [[ -n "$use_local" ]]; then
-    # Local model — bare on by default, skip-permissions NOT applied (not sandboxed)
+    # Local model — bare + exclude-dynamic-system-prompt-sections on by default, skip-permissions NOT applied (not sandboxed)
     ANTHROPIC_BASE_URL=http://localhost:11434 \
     ANTHROPIC_AUTH_TOKEN=ollama \
     ANTHROPIC_API_KEY="" \
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
-    command claude $bare_flag --model "$model" "${native_args[@]}"
+    command claude $bare_flag $exclude_dynamic_flag --model "$model" "${native_args[@]}"
 
   elif [[ -n "$use_sandbox" ]]; then
-    # Cloud model, Docker-sandboxed — skip-permissions on by default, bare NOT applied
+    # Cloud model, Docker-sandboxed — skip-permissions on by default, bare + exclude-dynamic-system-prompt-sections NOT applied
     docker run -it --rm \
       -v "$(pwd)":/work \
       -v ~/.claude:/home/agent/.claude \

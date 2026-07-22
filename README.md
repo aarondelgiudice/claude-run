@@ -59,9 +59,9 @@ After it finishes: `source ~/.zshrc` (or open a new terminal), then try
 ```bash
 claude                                              # normal, cloud
 claude --sandbox                                    # cloud model, Docker-isolated, bypass permissions
-claude --local                                      # local model (qwen3-coder), --bare
+claude --local                                      # local model (qwen3-coder), --bare + --exclude-dynamic-system-prompt-sections
 claude --local --model qwen2.5-coder:14b             # local model, different model
-claude --local --sandbox                            # local model, Docker-isolated, --bare + bypass permissions
+claude --local --sandbox                            # local model, Docker-isolated, --bare + --exclude-dynamic-system-prompt-sections + bypass permissions
 ```
 
 All native `claude` flags (`--resume`, `--permission-mode <mode>`, etc.) pass
@@ -79,6 +79,7 @@ claude --local --permission-mode plan
 | `--sandbox` | Run inside the `claude-local-sandbox` Docker container | off |
 | `--model <name>` | Model to use (only meaningful with `--local`) | `qwen3-coder` |
 | `--no-bare` | Disable `--bare` (skips tool calls to run faster) — see below | n/a |
+| `--no-exclude-dynamic-system-prompt-sections` | Disable `--exclude-dynamic-system-prompt-sections` (drops dynamic prompt sections) — see below | n/a |
 | `--no-skip-permissions` | Disable `--dangerously-skip-permissions` — see below | n/a |
 
 **`--bare` (Claude Code's minimal-tools mode) is on by default whenever
@@ -88,6 +89,16 @@ Opt out with `--no-bare` if you want tools available on a local model:
 ```bash
 claude --local --no-bare
 claude --local --sandbox --no-bare
+```
+
+**`--exclude-dynamic-system-prompt-sections` is on by default whenever
+`--local` is used** (`claude --local` and `claude --local --sandbox`), dropping
+the dynamic (per-run) sections of Claude Code's system prompt to keep the
+prompt smaller for local models. Opt out with
+`--no-exclude-dynamic-system-prompt-sections`:
+```bash
+claude --local --no-exclude-dynamic-system-prompt-sections
+claude --local --sandbox --no-exclude-dynamic-system-prompt-sections
 ```
 
 **`--dangerously-skip-permissions` is on by default whenever `--sandbox` is
