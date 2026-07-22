@@ -9,15 +9,16 @@
 #      Desktop is running (for --sandbox mode).
 #
 # USAGE:
-#   claude [native claude args]                                     # normal, cloud, bare metal
+#   claude [native claude args]                                     # normal, cloud
 #   claude --sandbox [native claude args]                           # cloud model, Docker, bypass permissions on
-#   claude --local [--model <name>] [native claude args]            # local model, bare metal, --bare on
+#   claude --local [--model <name>] [native claude args]            # local model, --bare on
 #   claude --local --sandbox [--model <name>] [native claude args]  # local model, Docker, --bare + bypass permissions on
 #
 # DEFAULTS (see README for full details):
-#   --bare is ON by default for --local and --local --sandbox. Opt out: --no-bare
+#   --bare (skips most tool calls to run faster) is ON by default for --local
+#     and --local --sandbox. Opt out: --no-bare
 #   --dangerously-skip-permissions is ON by default for --sandbox and
-#     --local --sandbox (never for bare-metal --local). Opt out: --no-skip-permissions
+#     --local --sandbox (never for --local without --sandbox). Opt out: --no-skip-permissions
 #
 # EXAMPLES:
 #   claude --resume
@@ -79,7 +80,7 @@ claude() {
       claude-local-sandbox $perm_flag $bare_flag --model "$model" "${native_args[@]}"
 
   elif [[ -n "$use_local" ]]; then
-    # Local model, bare metal — bare on by default, skip-permissions NOT applied (not sandboxed)
+    # Local model — bare on by default, skip-permissions NOT applied (not sandboxed)
     ANTHROPIC_BASE_URL=http://localhost:11434 \
     ANTHROPIC_AUTH_TOKEN=ollama \
     ANTHROPIC_API_KEY="" \

@@ -57,9 +57,9 @@ After it finishes: `source ~/.zshrc` (or open a new terminal), then try
 ## Usage
 
 ```bash
-claude                                              # normal, cloud, bare metal
+claude                                              # normal, cloud
 claude --sandbox                                    # cloud model, Docker-isolated, bypass permissions
-claude --local                                      # local model (qwen3-coder), bare metal, --bare
+claude --local                                      # local model (qwen3-coder), --bare
 claude --local --model qwen2.5-coder:14b             # local model, different model
 claude --local --sandbox                            # local model, Docker-isolated, --bare + bypass permissions
 ```
@@ -78,7 +78,7 @@ claude --local --permission-mode plan
 | `--local` | Route to a local Ollama model instead of the cloud API | off |
 | `--sandbox` | Run inside the `claude-local-sandbox` Docker container | off |
 | `--model <name>` | Model to use (only meaningful with `--local`) | `qwen3-coder` |
-| `--no-bare` | Disable `--bare` (tools off) — see below | n/a |
+| `--no-bare` | Disable `--bare` (skips tool calls to run faster) — see below | n/a |
 | `--no-skip-permissions` | Disable `--dangerously-skip-permissions` — see below | n/a |
 
 **`--bare` (Claude Code's minimal-tools mode) is on by default whenever
@@ -93,7 +93,7 @@ claude --local --sandbox --no-bare
 **`--dangerously-skip-permissions` is on by default whenever `--sandbox` is
 used** (`claude --sandbox` and `claude --local --sandbox`), since the Docker
 container provides a real filesystem boundary that makes bypass mode
-reasonable there. It is **not** applied to bare-metal `--local` (no container
+reasonable there. It is **not** applied to `--local` without `--sandbox` (no container
 boundary, so normal permission prompting still applies). Opt out with
 `--no-skip-permissions`:
 ```bash
