@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# setup.sh — one-time setup for claude-local-sandbox on a new machine.
+# setup.sh: one-time setup for claude-local-sandbox on a new machine.
 # Safe to re-run: build is idempotent, and the .zshrc line is only added once.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,11 +30,11 @@ if ! command -v ollama >/dev/null 2>&1; then
       exit 1
     fi
     brew install --cask ollama
-    open -a /Applications/Ollama.app 2>/dev/null || echo "NOTE: couldn't auto-launch Ollama yet — you may need to open it manually the first time."
+    open -a /Applications/Ollama.app 2>/dev/null || echo "NOTE: couldn't auto-launch Ollama yet. Open it manually the first time."
     echo "Waiting for Ollama to start..."
     sleep 5
   else
-    echo "Skipping — install manually from https://ollama.com/download, then re-run this script."
+    echo "Skipping. Install manually from https://ollama.com/download, then re-run this script."
     exit 1
   fi
 fi
@@ -52,7 +52,7 @@ if pgrep -x "Ollama" >/dev/null 2>&1; then
   osascript -e 'quit app "Ollama"' 2>/dev/null || true
   sleep 2
 fi
-open -a /Applications/Ollama.app 2>/dev/null || echo "NOTE: couldn't auto-launch the Ollama app — start it manually."
+open -a /Applications/Ollama.app 2>/dev/null || echo "NOTE: couldn't auto-launch the Ollama app. Start it manually."
 sleep 3
 
 # --- 2. Check UID match against Dockerfile ---
@@ -67,7 +67,7 @@ if [[ -n "$DOCKERFILE_UID" && "$HOST_UID" != "$DOCKERFILE_UID" ]]; then
     rm -f "$SCRIPT_DIR/Dockerfile.bak"
     echo "Updated Dockerfile to UID $HOST_UID."
   else
-    echo "Skipping UID update — note: --sandbox mode may show ownership mismatches on mounted ~/.claude files."
+    echo "Skipping UID update. --sandbox mode may show ownership mismatches on mounted ~/.claude files."
   fi
 fi
 
@@ -79,7 +79,7 @@ docker build -t claude-local-sandbox "$SCRIPT_DIR"
 # --- 4. Wire up the shell function ---
 echo
 if grep -qF "$SOURCE_LINE" "$ZSHRC" 2>/dev/null; then
-  echo "~/.zshrc already sources claude-local-sandbox.zsh — skipping."
+  echo "~/.zshrc already sources claude-local-sandbox.zsh; skipping."
 else
   echo "" >> "$ZSHRC"
   echo "# claude-local-sandbox" >> "$ZSHRC"

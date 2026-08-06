@@ -1,4 +1,4 @@
-# claude-local-sandbox — wraps `claude` with --api and --sandbox modes.
+# claude-local-sandbox: wraps `claude` with --api and --sandbox modes.
 #
 # Setup (one-time per machine):
 #   1. Build the image:  docker build -t claude-local-sandbox .
@@ -24,19 +24,19 @@
 #     (any backend). Opt out: --no-skip-permissions
 #
 # BACKENDS (--api <backend>):
-#   local      — Ollama on this machine (default model qwen3-coder; --model to change).
-#                No API key needed. --bare + --exclude-dynamic-system-prompt-sections
-#                default on (local models are slow with the full tool schema).
-#   deepseek   — DeepSeek's Anthropic-compatible API. Set $DEEPSEEK_API_KEY first.
-#   kimi       — Kimi k3 (Moonshot, 1M context). Set $KIMI_API_KEY first.
-#   kimi-k2.7  — Kimi k2.7-code (Moonshot, 256K context). Set $KIMI_API_KEY first.
-#                REQUIRES Thinking ON in Claude Code (press Tab) or it rejects requests.
+#   local      Ollama on this machine (default model qwen3-coder; --model to change).
+#              No API key needed. --bare + --exclude-dynamic-system-prompt-sections
+#              default on (local models are slow with the full tool schema).
+#   deepseek   DeepSeek's Anthropic-compatible API. Set $DEEPSEEK_API_KEY first.
+#   kimi       Kimi k3 (Moonshot, 1M context). Set $KIMI_API_KEY first.
+#   kimi-k2.7  Kimi k2.7-code (Moonshot, 256K context). Set $KIMI_API_KEY first.
+#              REQUIRES Thinking ON in Claude Code (press Tab) or it rejects requests.
 #   Any --api backend may combine with --sandbox for Docker isolation.
 #
 #   In-session, /model flips models live where a backend maps two: deepseek
 #   (Opus=Pro, Sonnet=Flash) and kimi-k2.7 (Opus=k2.7-code, Sonnet=highspeed).
-#   The endpoint is fixed per session; you cannot reach Anthropic models or cross
-#   context-window sizes (k3 vs k2.7) mid-session.
+#   The endpoint is fixed per session. You cannot reach Anthropic models. You
+#   cannot cross context-window sizes (k3 vs k2.7) mid-session.
 #
 # EXAMPLES:
 #   claude --resume
@@ -201,7 +201,7 @@ claude() {
   fi
 
   if [[ -n "$api_provider" && -n "$use_sandbox" ]]; then
-    # --api backend, Docker-sandboxed — skip-permissions on by default; env via -e
+    # --api backend, Docker-sandboxed. skip-permissions on by default; env via -e.
     local -a docker_env
     local _kv
     for _kv in "${api_env[@]}"; do docker_env+=(-e "$_kv"); done
@@ -211,11 +211,11 @@ claude() {
       claude-local-sandbox $perm_flag $api_cli_flags "${native_args[@]}"
 
   elif [[ -n "$api_provider" ]]; then
-    # --api backend on host — env set for this process only (never exported)
+    # --api backend on host. env set for this process only (never exported).
     env "${api_env[@]}" claude $api_cli_flags "${native_args[@]}"
 
   elif [[ -n "$use_sandbox" ]]; then
-    # Cloud model, Docker-sandboxed — skip-permissions on by default
+    # Cloud model, Docker-sandboxed. skip-permissions on by default.
     docker run -it --rm \
       -v "$(pwd)":/work \
       -v ~/.claude:/home/agent/.claude \
@@ -223,7 +223,7 @@ claude() {
       claude-local-sandbox $perm_flag "${native_args[@]}"
 
   else
-    # Normal — untouched
+    # Normal, untouched.
     command claude "${native_args[@]}"
   fi
 }

@@ -23,13 +23,13 @@ cd claude-local-sandbox
   manual installer if Homebrew isn't available)
 - Setting Ollama's performance env vars via `launchctl setenv`
   (`OLLAMA_FLASH_ATTENTION`, `OLLAMA_KV_CACHE_TYPE`, `OLLAMA_KEEP_ALIVE`) and
-  restarting Ollama so they take effect — these persist across reboots once
-  set, but need to be set again on a machine that's never had them
+  restarting Ollama so they take effect. These persist across reboots once set.
+  Set them again on a machine that never had them.
 - Detecting a host UID mismatch against the Dockerfile and offering to fix it
-- Building the `claude-local-sandbox` image (**this step is required on every
-  machine** — Docker images aren't portable through git, only the Dockerfile is;
-  each machine builds its own image from it)
-- Adding a `source` line to `~/.zshrc` (only once — checks first)
+- Building the `claude-local-sandbox` image (**required on every machine**:
+  Docker images aren't portable through git, only the Dockerfile is. Each
+  machine builds its own image from it.)
+- Adding a `source` line to `~/.zshrc` (once; the script checks first)
 - Optionally pulling the default `qwen3-coder` Ollama model
 
 After it finishes: `source ~/.zshrc` (or open a new terminal), then try
@@ -80,12 +80,12 @@ claude --api local --permission-mode plan
 
 | Flag | Effect | Default |
 |---|---|---|
-| `--api <backend>` | Pick where requests go: `local` (Ollama) or a hosted provider (`deepseek`, `kimi`, `kimi-k2.7`) — see below | cloud (Anthropic) |
+| `--api <backend>` | Pick where requests go: `local` (Ollama) or a hosted provider (`deepseek`, `kimi`, `kimi-k2.7`). See below | cloud (Anthropic) |
 | `--sandbox` | Run inside the `claude-local-sandbox` Docker container | off |
 | `--model <name>` | Model to use (sets the Ollama model under `--api local`; overrides the primary model under a hosted `--api`) | `qwen3-coder` |
-| `--no-bare` | Disable `--bare` (skips tool calls to run faster) — see below | n/a |
-| `--no-exclude-dynamic-system-prompt-sections` | Disable `--exclude-dynamic-system-prompt-sections` (drops dynamic prompt sections) — see below | n/a |
-| `--no-skip-permissions` | Disable `--dangerously-skip-permissions` — see below | n/a |
+| `--no-bare` | Disable `--bare` (skips tool calls to run faster). See below | n/a |
+| `--no-exclude-dynamic-system-prompt-sections` | Disable `--exclude-dynamic-system-prompt-sections` (drops dynamic prompt sections). See below | n/a |
+| `--no-skip-permissions` | Disable `--dangerously-skip-permissions`. See below | n/a |
 
 **`--bare` (Claude Code's minimal-tools mode) is on by default whenever
 `--api local` is used** (`claude --api local` and `claude --api local --sandbox`),
@@ -119,9 +119,9 @@ claude --api local --sandbox --no-skip-permissions
 
 **Default permission mode / plan mode:** use the native `--permission-mode`
 flag (accepts `default`, `acceptEdits`, `plan`, `bypassPermissions`), e.g.
-`claude --api local --permission-mode plan`. Note this may conflict with
-`--dangerously-skip-permissions` if both are active in a sandboxed mode —
-skip-permissions takes precedence when both are present.
+`claude --api local --permission-mode plan`. This can conflict with
+`--dangerously-skip-permissions` in a sandboxed mode. If both are present,
+skip-permissions takes precedence.
 
 ### External APIs (hosted `--api` backends)
 
@@ -216,6 +216,5 @@ container** depending on where your session state actually persists. See the
   Ollama model; under a hosted `--api` it overrides the provider's primary
   model. Passing it in plain cloud or `--sandbox`-only mode is silently ignored.
 - **`--bare` and `--dangerously-skip-permissions` have different defaults per
-  mode** — see the flags table under Usage. When unsure what a given invocation
-  will actually run, read the `case "$api_provider"` block in the function
-  source.
+  mode.** See the flags table under Usage. When unsure what an invocation will
+  run, read the `case "$api_provider"` block in the function source.
