@@ -33,6 +33,11 @@
 #                REQUIRES Thinking ON in Claude Code (press Tab) or it rejects requests.
 #   Any --api backend may combine with --sandbox for Docker isolation.
 #
+#   In-session, /model flips models live where a backend maps two: deepseek
+#   (Opus=Pro, Sonnet=Flash) and kimi-k2.7 (Opus=k2.7-code, Sonnet=highspeed).
+#   The endpoint is fixed per session; you cannot reach Anthropic models or cross
+#   context-window sizes (k3 vs k2.7) mid-session.
+#
 # EXAMPLES:
 #   claude --resume
 #   claude --sandbox --resume
@@ -117,12 +122,15 @@ claude() {
         api_cli_flags="$bare_flag $exclude_dynamic_flag --model $model"
         ;;
       deepseek)
+        # Pro on the Opus alias, Flash on Sonnet -> flip Pro<->Flash live via
+        # /model. (Both share a context window, so this is safe.)
         api_base_url="https://api.deepseek.com/anthropic"
         api_key_var="DEEPSEEK_API_KEY"
         api_default_model="deepseek-v4-pro"
         api_opus="deepseek-v4-pro"
-        api_sonnet="deepseek-v4-pro"
+        api_sonnet="deepseek-v4-flash"
         api_haiku="deepseek-v4-flash"
+        api_fable="deepseek-v4-pro"
         api_subagent="deepseek-v4-flash"
         api_effort="max"
         ;;
@@ -140,16 +148,17 @@ claude() {
         api_compact_window="1048576"
         ;;
       kimi-k2.7)
-        # Kimi k2.7-code (256K context). REQUIRES Thinking ON (press Tab in
-        # Claude Code); with thinking off the model rejects requests.
+        # Both k2.7 models are 256K and REQUIRE Thinking ON (press Tab in
+        # Claude Code); with thinking off they reject requests. Quality on the
+        # Opus alias, highspeed on Sonnet -> flip quality<->speed live via /model.
         api_base_url="https://api.moonshot.ai/anthropic"
         api_key_var="KIMI_API_KEY"
         api_default_model="kimi-k2.7-code"
         api_opus="kimi-k2.7-code"
-        api_sonnet="kimi-k2.7-code"
-        api_haiku="kimi-k2.7-code"
+        api_sonnet="kimi-k2.7-code-highspeed"
+        api_haiku="kimi-k2.7-code-highspeed"
         api_fable="kimi-k2.7-code"
-        api_subagent="kimi-k2.7-code"
+        api_subagent="kimi-k2.7-code-highspeed"
         api_effort="max"
         api_compact_window="262144"
         ;;

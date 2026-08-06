@@ -140,10 +140,12 @@ export DEEPSEEK_API_KEY=sk-...   # in ~/.zshrc or a secrets file
 ```
 Then:
 ```bash
-claude --api deepseek                          # default model deepseek-v4-pro
-claude --api deepseek --model deepseek-v4-flash # override the primary model
+claude --api deepseek                          # starts on Pro
+claude --api deepseek --model deepseek-v4-flash # start on a different model
 claude --api deepseek --sandbox                # same, Docker-isolated (bypass permissions on)
 ```
+In-session, `/model` flips models live: the **Opus** alias is Pro, the
+**Sonnet** alias is Flash.
 
 **Kimi (Moonshot).** Set your key first (get it from the
 [Kimi Open Platform](https://platform.moonshot.ai/)):
@@ -156,9 +158,20 @@ with each so it matches the model):
 claude --api kimi         # kimi-k3, 1M context; thinking on by default, works out of the box
 claude --api kimi-k2.7    # kimi-k2.7-code, 256K context
 ```
+Under `kimi-k2.7`, `/model` flips models live: the **Opus** alias is
+`kimi-k2.7-code` (quality), the **Sonnet** alias is `kimi-k2.7-code-highspeed`
+(about 5-6x faster output). `kimi` (k3) is a single model.
+
 **`kimi-k2.7` needs Thinking ON.** Press Tab in Claude Code to turn Thinking on
-before working. With thinking off, `kimi-k2.7-code` rejects requests. `kimi`
+before working. With thinking off, both k2.7 models reject requests. `kimi`
 (k3) has thinking on by default and needs no extra step.
+
+**Switching models in-session.** The endpoint is fixed for the whole session:
+every request goes to the backend you launched with, and you cannot reach real
+Anthropic models mid-session (quit and run plain `claude` for those). `/model`
+only reselects among the provider models mapped above. You cannot switch across
+context-window sizes mid-session (Kimi k3 vs k2.7), because the auto-compaction
+window is one value per session; use a different `--api` preset for that.
 
 `--bare` and `--exclude-dynamic-system-prompt-sections` apply only to
 `--api local` (they are local-model tweaks), not to hosted providers.
