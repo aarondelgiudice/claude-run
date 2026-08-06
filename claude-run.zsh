@@ -105,8 +105,8 @@ claude() {
   # To add a hosted provider, add a case with its base URL, key env var, and models.
   local api_base_url="" api_key="" api_model="" api_opus="" api_sonnet="" api_haiku=""
   local api_fable="" api_subagent="" api_effort="" api_compact_window=""
-  local api_disable_nonessential="" api_cli_flags=""
-  local -a api_env
+  local api_disable_nonessential=""
+  local -a api_env api_cli_flags
   if [[ -n "$api_provider" ]]; then
     local api_key_var="" api_default_model=""
     case "$api_provider" in
@@ -119,7 +119,10 @@ claude() {
         fi
         api_key="ollama"                # dummy token; no key env var to look up
         api_disable_nonessential="1"
-        api_cli_flags="$bare_flag $exclude_dynamic_flag --model $model"
+        # Array, not a string: zsh does not word-split unquoted scalars, so a
+        # single "--a --b" string would reach claude as one bogus option.
+        # Empty $bare_flag/$exclude_dynamic_flag (from --no-*) elide to nothing.
+        api_cli_flags=($bare_flag $exclude_dynamic_flag --model $model)
         ;;
       deepseek)
         # Pro on the Opus alias, Flash on Sonnet -> flip Pro<->Flash live via
@@ -208,11 +211,11 @@ claude() {
     docker run -it --rm \
       -v "$(pwd)":/work \
       "${docker_env[@]}" \
-      claude-run $perm_flag $api_cli_flags "${native_args[@]}"
+      claude-run $perm_flag "${api_cli_flags[@]}" "${native_args[@]}"
 
   elif [[ -n "$api_provider" ]]; then
     # --api backend on host. env set for this process only (never exported).
-    env "${api_env[@]}" claude $api_cli_flags "${native_args[@]}"
+    env "${api_env[@]}" claude "${api_cli_flags[@]}" "${native_args[@]}"
 
   elif [[ -n "$use_sandbox" ]]; then
     # Cloud model, Docker-sandboxed. skip-permissions on by default.
