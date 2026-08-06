@@ -39,7 +39,7 @@ if ! command -v ollama >/dev/null 2>&1; then
   fi
 fi
 
-# --- 1c. Set Ollama performance env vars (persist via launchctl, survive reboots) ---
+# --- 1c. Set Ollama performance env vars (launchctl setenv; cleared on reboot, re-run this script after one) ---
 echo
 echo "Setting Ollama performance env vars via launchctl..."
 launchctl setenv OLLAMA_FLASH_ATTENTION 1

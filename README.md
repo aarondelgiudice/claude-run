@@ -23,8 +23,9 @@ cd claude-run
   manual installer if Homebrew isn't available)
 - Setting Ollama's performance env vars via `launchctl setenv`
   (`OLLAMA_FLASH_ATTENTION`, `OLLAMA_KV_CACHE_TYPE`, `OLLAMA_KEEP_ALIVE`) and
-  restarting Ollama so they take effect. These persist across reboots once set.
-  Set them again on a machine that never had them.
+  restarting Ollama so they take effect. `launchctl setenv` sets them for the
+  current boot only; a reboot clears them, so re-run `setup.sh` (or re-set them)
+  afterward. Check them with `launchctl getenv OLLAMA_FLASH_ATTENTION`.
 - Detecting a host UID mismatch against the Dockerfile and offering to fix it
 - Building the `claude-run` image (**required on every machine**:
   Docker images aren't portable through git, only the Dockerfile is. Each
@@ -145,15 +146,16 @@ claude --api deepseek --model deepseek-v4-flash # start on a different model
 claude --api deepseek --sandbox                # same, Docker-isolated (bypass permissions on)
 ```
 In-session, `/model` flips models live: the **Opus** alias is Pro, the
-**Sonnet** alias is Flash.
+**Sonnet** alias is Flash. Both are ~1M-context models, and the wrapper declares
+that to Claude Code so it doesn't assume 200K.
 
 **Kimi (Moonshot).** Set your key first (get it from the
 [Kimi Open Platform](https://platform.moonshot.ai/)):
 ```bash
 export KIMI_API_KEY=sk-...
 ```
-Two presets, split by model context window (the auto-compaction window ships
-with each so it matches the model):
+Two presets, split by model context window. Each declares its real window to
+Claude Code (1M for k3, 256K for k2.7) so compaction is sized correctly:
 ```bash
 claude --api kimi         # kimi-k3, 1M context; thinking on by default, works out of the box
 claude --api kimi-k2.7    # kimi-k2.7-code, 256K context
@@ -170,13 +172,25 @@ before working. With thinking off, both k2.7 models reject requests. `kimi`
 every request goes to the backend you launched with, and you cannot reach real
 Anthropic models mid-session (quit and run plain `claude` for those). `/model`
 only reselects among the provider models mapped above. You cannot switch across
-context-window sizes mid-session (Kimi k3 vs k2.7), because the auto-compaction
+context-window sizes mid-session (Kimi k3 vs k2.7), because the assumed context
 window is one value per session; use a different `--api` preset for that.
 
 `--bare` and `--exclude-dynamic-system-prompt-sections` apply only to
 `--api local` (they are local-model tweaks), not to hosted providers.
 `--dangerously-skip-permissions` still follows the usual rule: on by default
 only when `--sandbox` is present.
+
+**Reasoning effort.** Hosted backends launch at `--effort xhigh`, a *soft*
+default: change it for the session with `/effort`, or change the launch default
+with `$CLAUDE_RUN_EFFORT`. (The wrapper uses the `--effort` flag, not
+`CLAUDE_CODE_EFFORT_LEVEL`, because that env var would lock `/effort` out.)
+`--api local` sets no effort default.
+
+**Context window.** For each backend the wrapper sets
+`CLAUDE_CODE_MAX_CONTEXT_TOKENS` so Claude Code uses the model's real window
+instead of assuming 200K for these unrecognized model names. For `--api local`
+the value is `$CLAUDE_RUN_LOCAL_CONTEXT` (default `262144`); set it to what your
+Ollama actually serves (`ollama ps` shows the loaded context).
 
 **Adding a hosted provider:** edit the `case "$api_provider"` block in
 `claude-run.zsh`. Each provider sets a base URL, the name of the env

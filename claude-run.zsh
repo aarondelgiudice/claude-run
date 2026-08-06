@@ -104,7 +104,7 @@ claude() {
   # --api <backend>: pick where requests go. Each backend sets its env below.
   # To add a hosted provider, add a case with its base URL, key env var, and models.
   local api_base_url="" api_key="" api_model="" api_opus="" api_sonnet="" api_haiku=""
-  local api_fable="" api_subagent="" api_effort="" api_compact_window=""
+  local api_fable="" api_subagent="" api_max_context=""
   local api_disable_nonessential=""
   local -a api_env api_cli_flags
   if [[ -n "$api_provider" ]]; then
@@ -119,6 +119,10 @@ claude() {
         fi
         api_key="ollama"                # dummy token; no key env var to look up
         api_disable_nonessential="1"
+        # What Ollama actually serves (num_ctx). Overridable per machine; the
+        # default matches qwen3-coder's served window. Claude Code otherwise
+        # assumes 200k for this unrecognized model.
+        api_max_context="${CLAUDE_RUN_LOCAL_CONTEXT:-262144}"
         # Array, not a string: zsh does not word-split unquoted scalars, so a
         # single "--a --b" string would reach claude as one bogus option.
         # Empty $bare_flag/$exclude_dynamic_flag (from --no-*) elide to nothing.
@@ -135,7 +139,7 @@ claude() {
         api_haiku="deepseek-v4-flash"
         api_fable="deepseek-v4-pro"
         api_subagent="deepseek-v4-flash"
-        api_effort="max"
+        api_max_context="1048576"       # pro and flash are both ~1M
         ;;
       kimi)
         # Kimi k3 (1M context). Thinking on by default; works out of the box.
@@ -147,8 +151,7 @@ claude() {
         api_haiku="kimi-k3"
         api_fable="kimi-k3"
         api_subagent="kimi-k3"
-        api_effort="max"
-        api_compact_window="1048576"
+        api_max_context="1048576"
         ;;
       kimi-k2.7)
         # Both k2.7 models are 256K and REQUIRE Thinking ON (press Tab in
@@ -162,8 +165,7 @@ claude() {
         api_haiku="kimi-k2.7-code-highspeed"
         api_fable="kimi-k2.7-code"
         api_subagent="kimi-k2.7-code-highspeed"
-        api_effort="max"
-        api_compact_window="262144"
+        api_max_context="262144"
         ;;
       *)
         echo "claude: unknown --api backend '$api_provider' (known: local, deepseek, kimi, kimi-k2.7)" >&2
@@ -186,6 +188,14 @@ claude() {
       [[ -n "$model_set" ]] && api_model="$model"
     fi
 
+    # Hosted models: soft effort default via the --effort launch flag, which
+    # in-session /effort can still override (unlike CLAUDE_CODE_EFFORT_LEVEL,
+    # which would lock it). Change the launch default with $CLAUDE_RUN_EFFORT.
+    # Not applied to local: forcing high effort on a slow local model hurts.
+    if [[ "$api_provider" != "local" ]]; then
+      api_cli_flags+=(--effort "${CLAUDE_RUN_EFFORT:-xhigh}")
+    fi
+
     # Build the env once; append only the vars this backend actually sets.
     api_env=(
       ANTHROPIC_BASE_URL="$api_base_url"
@@ -198,8 +208,7 @@ claude() {
     [[ -n "$api_haiku" ]]             && api_env+=("ANTHROPIC_DEFAULT_HAIKU_MODEL=$api_haiku")
     [[ -n "$api_fable" ]]             && api_env+=("ANTHROPIC_DEFAULT_FABLE_MODEL=$api_fable")
     [[ -n "$api_subagent" ]]          && api_env+=("CLAUDE_CODE_SUBAGENT_MODEL=$api_subagent")
-    [[ -n "$api_effort" ]]            && api_env+=("CLAUDE_CODE_EFFORT_LEVEL=$api_effort")
-    [[ -n "$api_compact_window" ]]    && api_env+=("CLAUDE_CODE_AUTO_COMPACT_WINDOW=$api_compact_window")
+    [[ -n "$api_max_context" ]]       && api_env+=("CLAUDE_CODE_MAX_CONTEXT_TOKENS=$api_max_context")
     [[ -n "$api_disable_nonessential" ]] && api_env+=("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1")
   fi
 
