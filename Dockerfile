@@ -1,11 +1,11 @@
-# claude-local-sandbox
+# claude-run
 #
-# A sandboxed environment for running Claude Code — either against Anthropic's
-# cloud API or a local Ollama model — with the container providing real
-# filesystem/process isolation from the host machine.
+# A sandboxed environment for running Claude Code against Anthropic's cloud API
+# or a local Ollama model. The container gives real filesystem and process
+# isolation from the host machine.
 #
 # Build:
-#   docker build -t claude-local-sandbox .
+#   docker build -t claude-run .
 #
 # NOTE: the `useradd -u` value below is pinned to a specific host UID so that
 # bind-mounted files (e.g. ~/.claude, ~/.claude.json) retain correct ownership

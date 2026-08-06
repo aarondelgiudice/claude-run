@@ -1,4 +1,4 @@
-# claude-local-sandbox
+# claude-run
 
 Run Claude Code against Anthropic's cloud API or a local Ollama model, either
 directly or inside a Docker container for filesystem isolation.
@@ -12,8 +12,8 @@ directly or inside a Docker container for filesystem isolation.
 ## Setup (new machine)
 
 ```bash
-git clone <this-repo> claude-local-sandbox
-cd claude-local-sandbox
+git clone <this-repo> claude-run
+cd claude-run
 ./setup.sh
 ```
 
@@ -26,7 +26,7 @@ cd claude-local-sandbox
   restarting Ollama so they take effect. These persist across reboots once set.
   Set them again on a machine that never had them.
 - Detecting a host UID mismatch against the Dockerfile and offering to fix it
-- Building the `claude-local-sandbox` image (**required on every machine**:
+- Building the `claude-run` image (**required on every machine**:
   Docker images aren't portable through git, only the Dockerfile is. Each
   machine builds its own image from it.)
 - Adding a `source` line to `~/.zshrc` (once; the script checks first)
@@ -49,8 +49,8 @@ After it finishes: `source ~/.zshrc` (or open a new terminal), then try
    ```
 3. Check your host UID (`id -u`); if it's not `501`, edit the `useradd -u 501`
    line in `Dockerfile` to match.
-4. `docker build -t claude-local-sandbox .`
-5. Add `source /path/to/claude-local-sandbox.zsh` to `~/.zshrc`, then
+4. `docker build -t claude-run .`
+5. Add `source /path/to/claude-run.zsh` to `~/.zshrc`, then
    `source ~/.zshrc`.
 6. `ollama pull qwen3-coder`
 
@@ -81,7 +81,7 @@ claude --api local --permission-mode plan
 | Flag | Effect | Default |
 |---|---|---|
 | `--api <backend>` | Pick where requests go: `local` (Ollama) or a hosted provider (`deepseek`, `kimi`, `kimi-k2.7`). See below | cloud (Anthropic) |
-| `--sandbox` | Run inside the `claude-local-sandbox` Docker container | off |
+| `--sandbox` | Run inside the `claude-run` Docker container | off |
 | `--model <name>` | Model to use (sets the Ollama model under `--api local`; overrides the primary model under a hosted `--api`) | `qwen3-coder` |
 | `--no-bare` | Disable `--bare` (skips tool calls to run faster). See below | n/a |
 | `--no-exclude-dynamic-system-prompt-sections` | Disable `--exclude-dynamic-system-prompt-sections` (drops dynamic prompt sections). See below | n/a |
@@ -179,7 +179,7 @@ window is one value per session; use a different `--api` preset for that.
 only when `--sandbox` is present.
 
 **Adding a hosted provider:** edit the `case "$api_provider"` block in
-`claude-local-sandbox.zsh`. Each provider sets a base URL, the name of the env
+`claude-run.zsh`. Each provider sets a base URL, the name of the env
 var holding its key, and its model names.
 
 ### First run of `--sandbox`
@@ -206,9 +206,9 @@ container** depending on where your session state actually persists. See the
   repeated login prompts, consider running a **named, non-`--rm` container**
   for `--sandbox` mode instead, so login state persists across runs:
   ```bash
-  docker run -it --name claude-sandbox-persistent -v "$(pwd)":/work claude-local-sandbox
+  docker run -it --name claude-run-persistent -v "$(pwd)":/work claude-run
   # later:
-  docker start -ai claude-sandbox-persistent
+  docker start -ai claude-run-persistent
   ```
   Trade-off: a persistent named container is tied to the directory it was
   first created in.

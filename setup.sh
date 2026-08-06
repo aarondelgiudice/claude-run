@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# setup.sh: one-time setup for claude-local-sandbox on a new machine.
+# setup.sh: one-time setup for claude-run on a new machine.
 # Safe to re-run: build is idempotent, and the .zshrc line is only added once.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ZSHRC="$HOME/.zshrc"
-SOURCE_LINE="source \"$SCRIPT_DIR/claude-local-sandbox.zsh\""
+SOURCE_LINE="source \"$SCRIPT_DIR/claude-run.zsh\""
 
-echo "== claude-local-sandbox setup =="
+echo "== claude-run setup =="
 echo
 
 # --- 1. Check prerequisites ---
@@ -73,16 +73,16 @@ fi
 
 # --- 3. Build the image ---
 echo
-echo "Building claude-local-sandbox image..."
-docker build -t claude-local-sandbox "$SCRIPT_DIR"
+echo "Building claude-run image..."
+docker build -t claude-run "$SCRIPT_DIR"
 
 # --- 4. Wire up the shell function ---
 echo
 if grep -qF "$SOURCE_LINE" "$ZSHRC" 2>/dev/null; then
-  echo "~/.zshrc already sources claude-local-sandbox.zsh; skipping."
+  echo "~/.zshrc already sources claude-run.zsh; skipping."
 else
   echo "" >> "$ZSHRC"
-  echo "# claude-local-sandbox" >> "$ZSHRC"
+  echo "# claude-run" >> "$ZSHRC"
   echo "$SOURCE_LINE" >> "$ZSHRC"
   echo "Added source line to ~/.zshrc."
 fi

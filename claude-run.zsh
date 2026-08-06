@@ -1,10 +1,10 @@
-# claude-local-sandbox: wraps `claude` with --api and --sandbox modes.
+# claude-run: wraps `claude` with --api and --sandbox modes.
 #
 # Setup (one-time per machine):
-#   1. Build the image:  docker build -t claude-local-sandbox .
+#   1. Build the image:  docker build -t claude-run .
 #      (from the directory containing the Dockerfile in this repo)
 #   2. Add this file to your shell config, e.g. in ~/.zshrc:
-#        source /path/to/claude-local-sandbox.zsh
+#        source /path/to/claude-run.zsh
 #   3. Make sure Ollama is running locally (for --api local) and Docker
 #      Desktop is running (for --sandbox).
 #
@@ -208,7 +208,7 @@ claude() {
     docker run -it --rm \
       -v "$(pwd)":/work \
       "${docker_env[@]}" \
-      claude-local-sandbox $perm_flag $api_cli_flags "${native_args[@]}"
+      claude-run $perm_flag $api_cli_flags "${native_args[@]}"
 
   elif [[ -n "$api_provider" ]]; then
     # --api backend on host. env set for this process only (never exported).
@@ -220,7 +220,7 @@ claude() {
       -v "$(pwd)":/work \
       -v ~/.claude:/home/agent/.claude \
       -v ~/.claude.json:/home/agent/.claude.json \
-      claude-local-sandbox $perm_flag "${native_args[@]}"
+      claude-run $perm_flag "${native_args[@]}"
 
   else
     # Normal, untouched.
