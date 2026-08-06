@@ -62,6 +62,8 @@ claude --sandbox                                    # cloud model, Docker-isolat
 claude --local                                      # local model (qwen3-coder), --bare + --exclude-dynamic-system-prompt-sections
 claude --local --model qwen2.5-coder:14b             # local model, different model
 claude --local --sandbox                            # local model, Docker-isolated, --bare + --exclude-dynamic-system-prompt-sections + bypass permissions
+claude --api deepseek                               # external API (DeepSeek), needs $DEEPSEEK_API_KEY
+claude --api deepseek --sandbox                     # external API, Docker-isolated, bypass permissions
 ```
 
 All native `claude` flags (`--resume`, `--permission-mode <mode>`, etc.) pass
@@ -77,7 +79,8 @@ claude --local --permission-mode plan
 |---|---|---|
 | `--local` | Route to a local Ollama model instead of the cloud API | off |
 | `--sandbox` | Run inside the `claude-local-sandbox` Docker container | off |
-| `--model <name>` | Model to use (only meaningful with `--local`) | `qwen3-coder` |
+| `--api <provider>` | Route to an external Anthropic-compatible API (e.g. `deepseek`) — see below | off |
+| `--model <name>` | Model to use (meaningful with `--local`; also overrides the primary model under `--api`) | `qwen3-coder` |
 | `--no-bare` | Disable `--bare` (skips tool calls to run faster) — see below | n/a |
 | `--no-exclude-dynamic-system-prompt-sections` | Disable `--exclude-dynamic-system-prompt-sections` (drops dynamic prompt sections) — see below | n/a |
 | `--no-skip-permissions` | Disable `--dangerously-skip-permissions` — see below | n/a |
@@ -118,6 +121,34 @@ flag (accepts `default`, `acceptEdits`, `plan`, `bypassPermissions`), e.g.
 `--dangerously-skip-permissions` if both are active in a sandboxed mode —
 skip-permissions takes precedence when both are present.
 
+### External APIs (`--api <provider>`)
+
+`--api <provider>` routes Claude Code to an external Anthropic-compatible API
+instead of the cloud API or a local Ollama model. This is **optional** and set
+inline per invocation, so it never exports or resets the environment variables
+`--local` uses to reach Ollama. `--api` and `--local` are mutually exclusive.
+
+Known provider: **`deepseek`**. Set your key first (get it from the
+[DeepSeek Platform](https://platform.deepseek.com/)):
+```bash
+export DEEPSEEK_API_KEY=sk-...   # in ~/.zshrc or a secrets file
+```
+Then:
+```bash
+claude --api deepseek                          # default model deepseek-v4-pro
+claude --api deepseek --model deepseek-v4-flash # override the primary model
+claude --api deepseek --sandbox                # same, Docker-isolated (bypass permissions on)
+```
+The wrapper errors if `$DEEPSEEK_API_KEY` is unset.
+
+`--bare` and `--exclude-dynamic-system-prompt-sections` do **not** apply under
+`--api` (those are local-model tweaks). `--dangerously-skip-permissions` still
+follows the usual rule: on by default only when `--sandbox` is present.
+
+**Adding a provider:** edit the `case "$api_provider"` block in
+`claude-local-sandbox.zsh`. Each provider sets a base URL, the name of the env
+var holding its key, and its model names.
+
 ### First run of `--sandbox`
 
 The first time you run `claude --sandbox` on a machine, it will prompt you to
@@ -148,8 +179,9 @@ container** depending on where your session state actually persists. See the
   ```
   Trade-off: a persistent named container is tied to the directory it was
   first created in.
-- **`--model` is only meaningful with `--local`.** Passing it without
-  `--local` is silently ignored.
+- **`--model` is meaningful with `--local` and `--api`.** Under `--local` it
+  picks the Ollama model; under `--api` it overrides the provider's primary
+  model. Passing it in plain cloud or `--sandbox`-only mode is silently ignored.
 - **`--bare` and `--dangerously-skip-permissions` have different defaults per
   mode** — see the flags table under Usage. Worth double-checking with
   `claude --local --help`-equivalent review of the function source if you're
