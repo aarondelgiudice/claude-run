@@ -24,10 +24,13 @@
 #     (any backend). Opt out: --no-skip-permissions
 #
 # BACKENDS (--api <backend>):
-#   local     — Ollama on this machine (default model qwen3-coder; --model to change).
-#               No API key needed. --bare + --exclude-dynamic-system-prompt-sections
-#               default on (local models are slow with the full tool schema).
-#   deepseek  — DeepSeek's Anthropic-compatible API. Set $DEEPSEEK_API_KEY first.
+#   local      — Ollama on this machine (default model qwen3-coder; --model to change).
+#                No API key needed. --bare + --exclude-dynamic-system-prompt-sections
+#                default on (local models are slow with the full tool schema).
+#   deepseek   — DeepSeek's Anthropic-compatible API. Set $DEEPSEEK_API_KEY first.
+#   kimi       — Kimi k3 (Moonshot, 1M context). Set $KIMI_API_KEY first.
+#   kimi-k2.7  — Kimi k2.7-code (Moonshot, 256K context). Set $KIMI_API_KEY first.
+#                REQUIRES Thinking ON in Claude Code (press Tab) or it rejects requests.
 #   Any --api backend may combine with --sandbox for Docker isolation.
 #
 # EXAMPLES:
@@ -43,6 +46,9 @@
 #   claude --api deepseek
 #   claude --api deepseek --model deepseek-v4-flash
 #   claude --api deepseek --sandbox
+#   claude --api kimi
+#   claude --api kimi-k2.7
+#   claude --api kimi --sandbox
 claude() {
   local use_sandbox=""
   local model="qwen3-coder"
@@ -120,8 +126,35 @@ claude() {
         api_subagent="deepseek-v4-flash"
         api_effort="max"
         ;;
+      kimi)
+        # Kimi k3 (1M context). Thinking on by default; works out of the box.
+        api_base_url="https://api.moonshot.ai/anthropic"
+        api_key_var="KIMI_API_KEY"
+        api_default_model="kimi-k3"
+        api_opus="kimi-k3"
+        api_sonnet="kimi-k3"
+        api_haiku="kimi-k3"
+        api_fable="kimi-k3"
+        api_subagent="kimi-k3"
+        api_effort="max"
+        api_compact_window="1048576"
+        ;;
+      kimi-k2.7)
+        # Kimi k2.7-code (256K context). REQUIRES Thinking ON (press Tab in
+        # Claude Code); with thinking off the model rejects requests.
+        api_base_url="https://api.moonshot.ai/anthropic"
+        api_key_var="KIMI_API_KEY"
+        api_default_model="kimi-k2.7-code"
+        api_opus="kimi-k2.7-code"
+        api_sonnet="kimi-k2.7-code"
+        api_haiku="kimi-k2.7-code"
+        api_fable="kimi-k2.7-code"
+        api_subagent="kimi-k2.7-code"
+        api_effort="max"
+        api_compact_window="262144"
+        ;;
       *)
-        echo "claude: unknown --api backend '$api_provider' (known: local, deepseek)" >&2
+        echo "claude: unknown --api backend '$api_provider' (known: local, deepseek, kimi, kimi-k2.7)" >&2
         return 1
         ;;
     esac

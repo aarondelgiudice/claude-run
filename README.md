@@ -64,6 +64,8 @@ claude --api local --model qwen2.5-coder:14b         # Ollama, different model
 claude --api local --sandbox                        # Ollama, Docker-isolated, --bare + --exclude-dynamic-system-prompt-sections + bypass permissions
 claude --api deepseek                               # external API (DeepSeek), needs $DEEPSEEK_API_KEY
 claude --api deepseek --sandbox                     # external API, Docker-isolated, bypass permissions
+claude --api kimi                                   # external API (Kimi k3, 1M), needs $KIMI_API_KEY
+claude --api kimi-k2.7                              # external API (Kimi k2.7-code, 256K); needs Thinking ON (Tab)
 ```
 
 `--api <backend>` picks where requests go; `--sandbox` is orthogonal and adds
@@ -78,7 +80,7 @@ claude --api local --permission-mode plan
 
 | Flag | Effect | Default |
 |---|---|---|
-| `--api <backend>` | Pick where requests go: `local` (Ollama) or a hosted provider like `deepseek` — see below | cloud (Anthropic) |
+| `--api <backend>` | Pick where requests go: `local` (Ollama) or a hosted provider (`deepseek`, `kimi`, `kimi-k2.7`) — see below | cloud (Anthropic) |
 | `--sandbox` | Run inside the `claude-local-sandbox` Docker container | off |
 | `--model <name>` | Model to use (sets the Ollama model under `--api local`; overrides the primary model under a hosted `--api`) | `qwen3-coder` |
 | `--no-bare` | Disable `--bare` (skips tool calls to run faster) — see below | n/a |
@@ -128,7 +130,10 @@ hosted Anthropic-compatible API. Each backend's environment is set inline per
 invocation and never exported, so backends never leak into each other or into a
 later plain `claude`.
 
-Known hosted provider: **`deepseek`**. Set your key first (get it from the
+Known hosted providers: **`deepseek`**, **`kimi`**, **`kimi-k2.7`**. Each errors
+if its key env var is unset.
+
+**DeepSeek.** Set your key first (get it from the
 [DeepSeek Platform](https://platform.deepseek.com/)):
 ```bash
 export DEEPSEEK_API_KEY=sk-...   # in ~/.zshrc or a secrets file
@@ -139,7 +144,21 @@ claude --api deepseek                          # default model deepseek-v4-pro
 claude --api deepseek --model deepseek-v4-flash # override the primary model
 claude --api deepseek --sandbox                # same, Docker-isolated (bypass permissions on)
 ```
-The wrapper errors if `$DEEPSEEK_API_KEY` is unset.
+
+**Kimi (Moonshot).** Set your key first (get it from the
+[Kimi Open Platform](https://platform.moonshot.ai/)):
+```bash
+export KIMI_API_KEY=sk-...
+```
+Two presets, split by model context window (the auto-compaction window ships
+with each so it matches the model):
+```bash
+claude --api kimi         # kimi-k3, 1M context; thinking on by default, works out of the box
+claude --api kimi-k2.7    # kimi-k2.7-code, 256K context
+```
+**`kimi-k2.7` needs Thinking ON.** Press Tab in Claude Code to turn Thinking on
+before working. With thinking off, `kimi-k2.7-code` rejects requests. `kimi`
+(k3) has thinking on by default and needs no extra step.
 
 `--bare` and `--exclude-dynamic-system-prompt-sections` apply only to
 `--api local` (they are local-model tweaks), not to hosted providers.
