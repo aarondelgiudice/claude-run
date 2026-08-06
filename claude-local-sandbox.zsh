@@ -1,51 +1,49 @@
-# claude-local-sandbox — wraps `claude` with --local and --sandbox modes.
+# claude-local-sandbox — wraps `claude` with --api and --sandbox modes.
 #
 # Setup (one-time per machine):
 #   1. Build the image:  docker build -t claude-local-sandbox .
 #      (from the directory containing the Dockerfile in this repo)
 #   2. Add this file to your shell config, e.g. in ~/.zshrc:
 #        source /path/to/claude-local-sandbox.zsh
-#   3. Make sure Ollama is running locally (for --local mode) and Docker
-#      Desktop is running (for --sandbox mode).
+#   3. Make sure Ollama is running locally (for --api local) and Docker
+#      Desktop is running (for --sandbox).
 #
 # USAGE:
-#   claude [native claude args]                                     # normal, cloud
-#   claude --sandbox [native claude args]                           # cloud model, Docker, bypass permissions on
-#   claude --local [--model <name>] [native claude args]            # local model, --bare + --exclude-dynamic-system-prompt-sections on
-#   claude --local --sandbox [--model <name>] [native claude args]  # local model, Docker, --bare + --exclude-dynamic-system-prompt-sections + bypass permissions on
-#   claude --api <provider> [native claude args]                    # external API (e.g. deepseek)
-#   claude --api <provider> --sandbox [native claude args]          # external API, Docker, bypass permissions on
+#   claude [native claude args]                                     # cloud (Anthropic)
+#   claude --sandbox [native claude args]                           # cloud, Docker, bypass permissions on
+#   claude --api local [--model <name>] [native claude args]        # Ollama, --bare + --exclude-dynamic-system-prompt-sections on
+#   claude --api deepseek [native claude args]                      # external API (DeepSeek)
+#   claude --api <backend> --sandbox [native claude args]           # any --api backend, Docker, bypass permissions on
 #
 # DEFAULTS (see README for full details):
-#   --bare (skips most tool calls to run faster) is ON by default for --local
-#     and --local --sandbox. Opt out: --no-bare
-#   --exclude-dynamic-system-prompt-sections is ON by default for --local and
-#     --local --sandbox. Opt out: --no-exclude-dynamic-system-prompt-sections
-#   --dangerously-skip-permissions is ON by default for --sandbox and
-#     --local --sandbox (never for --local without --sandbox). Opt out: --no-skip-permissions
+#   --bare (skips most tool calls to run faster) is ON by default for --api local.
+#     Opt out: --no-bare
+#   --exclude-dynamic-system-prompt-sections is ON by default for --api local.
+#     Opt out: --no-exclude-dynamic-system-prompt-sections
+#   --dangerously-skip-permissions is ON by default whenever --sandbox is used
+#     (any backend). Opt out: --no-skip-permissions
 #
-# EXTERNAL APIS:
-#   --api <provider> routes to an external Anthropic-compatible API instead of
-#     the cloud API or a local model. Known provider: deepseek (set
-#     $DEEPSEEK_API_KEY first). --api and --local are mutually exclusive.
-#     --bare and --exclude-dynamic-system-prompt-sections do NOT apply (those
-#     are local-model tweaks). --api may combine with --sandbox.
+# BACKENDS (--api <backend>):
+#   local     — Ollama on this machine (default model qwen3-coder; --model to change).
+#               No API key needed. --bare + --exclude-dynamic-system-prompt-sections
+#               default on (local models are slow with the full tool schema).
+#   deepseek  — DeepSeek's Anthropic-compatible API. Set $DEEPSEEK_API_KEY first.
+#   Any --api backend may combine with --sandbox for Docker isolation.
 #
 # EXAMPLES:
 #   claude --resume
 #   claude --sandbox --resume
-#   claude --local
-#   claude --local --model qwen2.5-coder:14b
-#   claude --local --sandbox
-#   claude --local --sandbox --model qwen2.5-coder:14b --resume
-#   claude --local --no-bare
-#   claude --local --no-exclude-dynamic-system-prompt-sections
+#   claude --api local
+#   claude --api local --model qwen2.5-coder:14b
+#   claude --api local --sandbox
+#   claude --api local --sandbox --model qwen2.5-coder:14b --resume
+#   claude --api local --no-bare
+#   claude --api local --no-exclude-dynamic-system-prompt-sections
 #   claude --sandbox --no-skip-permissions
 #   claude --api deepseek
 #   claude --api deepseek --model deepseek-v4-flash
 #   claude --api deepseek --sandbox
 claude() {
-  local use_local=""
   local use_sandbox=""
   local model="qwen3-coder"
   local model_set=""
@@ -57,10 +55,6 @@ claude() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --local)
-        use_local="1"
-        shift
-        ;;
       --sandbox)
         use_sandbox="1"
         shift
@@ -96,16 +90,26 @@ claude() {
   local perm_flag=""
   [[ -n "$skip_perms" && -n "$use_sandbox" ]] && perm_flag="--dangerously-skip-permissions"
 
-  # --api <provider>: route to an external Anthropic-compatible API.
-  # To add a provider, add a case below with its base URL, key env var, and models.
-  local api_base_url="" api_key="" api_model="" api_opus="" api_sonnet="" api_haiku="" api_subagent="" api_effort=""
+  # --api <backend>: pick where requests go. Each backend sets its env below.
+  # To add a hosted provider, add a case with its base URL, key env var, and models.
+  local api_base_url="" api_key="" api_model="" api_opus="" api_sonnet="" api_haiku=""
+  local api_fable="" api_subagent="" api_effort="" api_compact_window=""
+  local api_disable_nonessential="" api_cli_flags=""
+  local -a api_env
   if [[ -n "$api_provider" ]]; then
-    if [[ -n "$use_local" ]]; then
-      echo "claude: --api and --local are mutually exclusive" >&2
-      return 1
-    fi
     local api_key_var="" api_default_model=""
     case "$api_provider" in
+      local)
+        # Ollama on this machine. Base URL differs inside the container.
+        if [[ -n "$use_sandbox" ]]; then
+          api_base_url="http://host.docker.internal:11434"
+        else
+          api_base_url="http://localhost:11434"
+        fi
+        api_key="ollama"                # dummy token; no key env var to look up
+        api_disable_nonessential="1"
+        api_cli_flags="$bare_flag $exclude_dynamic_flag --model $model"
+        ;;
       deepseek)
         api_base_url="https://api.deepseek.com/anthropic"
         api_key_var="DEEPSEEK_API_KEY"
@@ -117,67 +121,59 @@ claude() {
         api_effort="max"
         ;;
       *)
-        echo "claude: unknown --api provider '$api_provider' (known: deepseek)" >&2
+        echo "claude: unknown --api backend '$api_provider' (known: local, deepseek)" >&2
         return 1
         ;;
     esac
-    api_key="${(P)api_key_var}"
-    if [[ -z "$api_key" ]]; then
-      echo "claude: \$$api_key_var is not set (required for --api $api_provider)" >&2
-      return 1
+
+    # Hosted providers read a key from an env var; local uses its dummy token.
+    if [[ -n "$api_key_var" ]]; then
+      api_key="${(P)api_key_var}"
+      if [[ -z "$api_key" ]]; then
+        echo "claude: \$$api_key_var is not set (required for --api $api_provider)" >&2
+        return 1
+      fi
     fi
-    api_model="$api_default_model"
-    [[ -n "$model_set" ]] && api_model="$model"
+
+    # Hosted providers carry the model in ANTHROPIC_MODEL; local rides --model.
+    if [[ -n "$api_default_model" ]]; then
+      api_model="$api_default_model"
+      [[ -n "$model_set" ]] && api_model="$model"
+    fi
+
+    # Build the env once; append only the vars this backend actually sets.
+    api_env=(
+      ANTHROPIC_BASE_URL="$api_base_url"
+      ANTHROPIC_AUTH_TOKEN="$api_key"
+      ANTHROPIC_API_KEY=""
+    )
+    [[ -n "$api_model" ]]              && api_env+=("ANTHROPIC_MODEL=$api_model")
+    [[ -n "$api_opus" ]]              && api_env+=("ANTHROPIC_DEFAULT_OPUS_MODEL=$api_opus")
+    [[ -n "$api_sonnet" ]]            && api_env+=("ANTHROPIC_DEFAULT_SONNET_MODEL=$api_sonnet")
+    [[ -n "$api_haiku" ]]             && api_env+=("ANTHROPIC_DEFAULT_HAIKU_MODEL=$api_haiku")
+    [[ -n "$api_fable" ]]             && api_env+=("ANTHROPIC_DEFAULT_FABLE_MODEL=$api_fable")
+    [[ -n "$api_subagent" ]]          && api_env+=("CLAUDE_CODE_SUBAGENT_MODEL=$api_subagent")
+    [[ -n "$api_effort" ]]            && api_env+=("CLAUDE_CODE_EFFORT_LEVEL=$api_effort")
+    [[ -n "$api_compact_window" ]]    && api_env+=("CLAUDE_CODE_AUTO_COMPACT_WINDOW=$api_compact_window")
+    [[ -n "$api_disable_nonessential" ]] && api_env+=("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1")
   fi
 
   if [[ -n "$api_provider" && -n "$use_sandbox" ]]; then
-    # External API, Docker-sandboxed — skip-permissions on by default; API vars passed via -e
+    # --api backend, Docker-sandboxed — skip-permissions on by default; env via -e
+    local -a docker_env
+    local _kv
+    for _kv in "${api_env[@]}"; do docker_env+=(-e "$_kv"); done
     docker run -it --rm \
       -v "$(pwd)":/work \
-      -e ANTHROPIC_BASE_URL="$api_base_url" \
-      -e ANTHROPIC_AUTH_TOKEN="$api_key" \
-      -e ANTHROPIC_API_KEY="" \
-      -e ANTHROPIC_MODEL="$api_model" \
-      -e ANTHROPIC_DEFAULT_OPUS_MODEL="$api_opus" \
-      -e ANTHROPIC_DEFAULT_SONNET_MODEL="$api_sonnet" \
-      -e ANTHROPIC_DEFAULT_HAIKU_MODEL="$api_haiku" \
-      -e CLAUDE_CODE_SUBAGENT_MODEL="$api_subagent" \
-      -e CLAUDE_CODE_EFFORT_LEVEL="$api_effort" \
-      claude-local-sandbox $perm_flag "${native_args[@]}"
+      "${docker_env[@]}" \
+      claude-local-sandbox $perm_flag $api_cli_flags "${native_args[@]}"
 
   elif [[ -n "$api_provider" ]]; then
-    # External API on host — vars set inline (never exported), so --local vars stay untouched
-    ANTHROPIC_BASE_URL="$api_base_url" \
-    ANTHROPIC_AUTH_TOKEN="$api_key" \
-    ANTHROPIC_API_KEY="" \
-    ANTHROPIC_MODEL="$api_model" \
-    ANTHROPIC_DEFAULT_OPUS_MODEL="$api_opus" \
-    ANTHROPIC_DEFAULT_SONNET_MODEL="$api_sonnet" \
-    ANTHROPIC_DEFAULT_HAIKU_MODEL="$api_haiku" \
-    CLAUDE_CODE_SUBAGENT_MODEL="$api_subagent" \
-    CLAUDE_CODE_EFFORT_LEVEL="$api_effort" \
-    command claude "${native_args[@]}"
-
-  elif [[ -n "$use_local" && -n "$use_sandbox" ]]; then
-    # Local model, Docker-sandboxed — bare + exclude-dynamic-system-prompt-sections + skip-permissions on by default
-    docker run -it --rm \
-      -v "$(pwd)":/work \
-      -e ANTHROPIC_BASE_URL=http://host.docker.internal:11434 \
-      -e ANTHROPIC_AUTH_TOKEN=ollama \
-      -e ANTHROPIC_API_KEY="" \
-      -e CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
-      claude-local-sandbox $perm_flag $bare_flag $exclude_dynamic_flag --model "$model" "${native_args[@]}"
-
-  elif [[ -n "$use_local" ]]; then
-    # Local model — bare + exclude-dynamic-system-prompt-sections on by default, skip-permissions NOT applied (not sandboxed)
-    ANTHROPIC_BASE_URL=http://localhost:11434 \
-    ANTHROPIC_AUTH_TOKEN=ollama \
-    ANTHROPIC_API_KEY="" \
-    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
-    command claude $bare_flag $exclude_dynamic_flag --model "$model" "${native_args[@]}"
+    # --api backend on host — env set for this process only (never exported)
+    env "${api_env[@]}" claude $api_cli_flags "${native_args[@]}"
 
   elif [[ -n "$use_sandbox" ]]; then
-    # Cloud model, Docker-sandboxed — skip-permissions on by default, bare + exclude-dynamic-system-prompt-sections NOT applied
+    # Cloud model, Docker-sandboxed — skip-permissions on by default
     docker run -it --rm \
       -v "$(pwd)":/work \
       -v ~/.claude:/home/agent/.claude \

@@ -98,4 +98,4 @@ fi
 
 echo
 echo "== Setup complete =="
-echo "Run 'source ~/.zshrc' (or open a new terminal), then try: claude --local"
+echo "Run 'source ~/.zshrc' (or open a new terminal), then try: claude --api local"
