@@ -81,7 +81,8 @@ claude --api local --permission-mode plan
 
 | Flag | Effect | Default |
 |---|---|---|
-| `--api <backend>` | Pick where requests go: `local` (Ollama) or a hosted provider (`deepseek`, `kimi`, `kimi-k2.7`). See below | cloud (Anthropic) |
+| `--api <backend>` | Pick where requests go: `local` (Ollama or llama.cpp) or a hosted provider (`deepseek`, `kimi`, `kimi-k2.7`). See below | cloud (Anthropic) |
+| `--engine <name>` | Local model server under `--api local`: `ollama` or `llamacpp`. Errors with any other `--api` | `ollama` |
 | `--sandbox` | Run inside the `claude-run` Docker container | off |
 | `--model <name>` | Model to use (sets the Ollama model under `--api local`; overrides the primary model under a hosted `--api`) | `qwen3-coder` |
 | `--no-bare` | Disable `--bare` (skips tool calls to run faster). See below | n/a |
@@ -123,6 +124,54 @@ flag (accepts `default`, `acceptEdits`, `plan`, `bypassPermissions`), e.g.
 `claude --api local --permission-mode plan`. This can conflict with
 `--dangerously-skip-permissions` in a sandboxed mode. If both are present,
 skip-permissions takes precedence.
+
+### llama.cpp (`--api local --engine llamacpp`)
+
+`--engine llamacpp` sends `--api local` requests to llama.cpp's `llama-server`
+instead of Ollama. Everything else about `--api local` stays the same,
+including the `--bare` and `--exclude-dynamic-system-prompt-sections` defaults.
+
+```bash
+claude --api local --engine llamacpp
+claude --api local --engine llamacpp --model qwen2.5-coder:14b
+claude --api local --engine llamacpp --sandbox
+```
+
+**Server lifetime.** If a `llama-server` you started yourself is running, the
+wrapper uses it and leaves it running. Otherwise it starts one in the
+background and stops it when `claude` exits. If you close the terminal window
+instead, a watcher stops the server within about 5 seconds. Startup waits
+until the model is loaded (several seconds; longer on a cold disk). Server
+output goes to `~/.cache/claude-run/llama-server.log`.
+
+Two sessions share one server. If the session that started the server exits
+first, the other session loses its server.
+
+**Model.** The wrapper loads the GGUF file that Ollama downloaded for
+`--model` (default `qwen3-coder`). It reads Ollama's manifest files directly,
+so Ollama does not need to be running. If Ollama has the same model loaded,
+both hold it in memory: run `ollama stop qwen3-coder` or quit Ollama.
+
+**Port and context.** The wrapper asks macOS which port the server listens
+on, because the default changed between llama.cpp versions (8080, then 9931).
+It reads the context window from `/props` and passes it to Claude Code as
+`CLAUDE_CODE_MAX_CONTEXT_TOKENS`.
+
+**Overrides** (only used when the wrapper starts the server):
+
+| Variable | Default |
+|---|---|
+| `CLAUDE_RUN_LLAMA_SERVER` | `~/Documents/llama.cpp/build/bin/llama-server` |
+| `CLAUDE_RUN_LLAMACPP_MODEL` | the Ollama GGUF for `--model` |
+| `CLAUDE_RUN_LLAMACPP_CONTEXT` | `65536` |
+
+To run the server yourself instead (for example, to watch its log live):
+```bash
+~/Documents/llama.cpp/build/bin/llama-server \
+  -m ~/.ollama/models/blobs/sha256-<digest> --jinja -c 65536 -fa on --alias qwen3-coder
+```
+
+This needs `curl`, `jq`, and `lsof`.
 
 ### External APIs (hosted `--api` backends)
 
