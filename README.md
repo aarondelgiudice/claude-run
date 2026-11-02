@@ -82,6 +82,7 @@ claude --api local --permission-mode plan
 | Flag | Effect | Default |
 |---|---|---|
 | `--api <backend>` | Pick where requests go: `local` (Ollama or llama.cpp) or a hosted provider (`deepseek`, `kimi`, `kimi-k2.7`). See below | cloud (Anthropic) |
+| `--local` | Same as `--api local` | n/a |
 | `--engine <name>` | Local model server under `--api local`: `ollama` or `llamacpp`. Errors with any other `--api` | `ollama` |
 | `--sandbox` | Run inside the `claude-run` Docker container | off |
 | `--model <name>` | Model to use (sets the Ollama model under `--api local`; overrides the primary model under a hosted `--api`) | `qwen3-coder` |

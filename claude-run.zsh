@@ -12,6 +12,7 @@
 #   claude [native claude args]                                     # cloud (Anthropic)
 #   claude --sandbox [native claude args]                           # cloud, Docker, bypass permissions on
 #   claude --api local [--model <name>] [native claude args]        # Ollama, --bare + --exclude-dynamic-system-prompt-sections on
+#   claude --local [...]                                            # same as --api local
 #   claude --api local --engine llamacpp [native claude args]       # llama-server (port auto-detected) instead of Ollama
 #   claude --api deepseek [native claude args]                      # external API (DeepSeek)
 #   claude --api <backend> --sandbox [native claude args]           # any --api backend, Docker, bypass permissions on
@@ -83,6 +84,10 @@ claude() {
       --api)
         api_provider="$2"
         shift 2
+        ;;
+      --local)                          # shorthand for --api local
+        api_provider="local"
+        shift
         ;;
       --engine)
         engine="$2"
