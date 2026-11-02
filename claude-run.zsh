@@ -310,6 +310,9 @@ claude() {
       ANTHROPIC_BASE_URL="$api_base_url"
       ANTHROPIC_AUTH_TOKEN="$api_key"
       ANTHROPIC_API_KEY=""
+      # Auto mode's server-side safety checks exist only on Anthropic's API.
+      # No --api backend has them, so skip the "isn't eligible" notice.
+      CLAUDE_CODE_AUTO_MODE_SERVER=0
     )
     [[ -n "$api_model" ]]              && api_env+=("ANTHROPIC_MODEL=$api_model")
     [[ -n "$api_opus" ]]              && api_env+=("ANTHROPIC_DEFAULT_OPUS_MODEL=$api_opus")
