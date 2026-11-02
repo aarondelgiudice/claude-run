@@ -60,9 +60,9 @@ After it finishes: `source ~/.zshrc` (or open a new terminal), then try
 ```bash
 claude                                              # cloud (Anthropic)
 claude --sandbox                                    # cloud, Docker-isolated, bypass permissions
-claude --api local                                  # Ollama (qwen3-coder), --bare + --exclude-dynamic-system-prompt-sections
-claude --api local --model qwen2.5-coder:14b         # Ollama, different model
-claude --api local --sandbox                        # Ollama, Docker-isolated, --bare + --exclude-dynamic-system-prompt-sections + bypass permissions
+claude --api local                                  # llama.cpp (qwen3-coder), --bare + --exclude-dynamic-system-prompt-sections
+claude --api local --model qwen2.5-coder:14b         # llama.cpp, different model
+claude --api local --sandbox                        # llama.cpp, Docker-isolated, --bare + --exclude-dynamic-system-prompt-sections + bypass permissions
 claude --api deepseek                               # external API (DeepSeek), needs $DEEPSEEK_API_KEY
 claude --api deepseek --sandbox                     # external API, Docker-isolated, bypass permissions
 claude --api kimi                                   # external API (Kimi k3, 1M), needs $KIMI_API_KEY
@@ -81,11 +81,11 @@ claude --api local --permission-mode plan
 
 | Flag | Effect | Default |
 |---|---|---|
-| `--api <backend>` | Pick where requests go: `local` (Ollama or llama.cpp) or a hosted provider (`deepseek`, `kimi`, `kimi-k2.7`). See below | cloud (Anthropic) |
+| `--api <backend>` | Pick where requests go: `local` (llama.cpp or Ollama) or a hosted provider (`deepseek`, `kimi`, `kimi-k2.7`). See below | cloud (Anthropic) |
 | `--local` | Same as `--api local` | n/a |
-| `--engine <name>` | Local model server under `--api local`: `ollama` or `llamacpp`. Errors with any other `--api` | `ollama` |
+| `--engine <name>` | Local model server under `--api local`: `llamacpp` or `ollama`. Errors with any other `--api` | `llamacpp` |
 | `--sandbox` | Run inside the `claude-run` Docker container | off |
-| `--model <name>` | Model to use (sets the Ollama model under `--api local`; overrides the primary model under a hosted `--api`) | `qwen3-coder` |
+| `--model <name>` | Model to use (sets the local model under `--api local`; overrides the primary model under a hosted `--api`) | `qwen3-coder` |
 | `--no-bare` | Disable `--bare` (skips tool calls to run faster). See below | n/a |
 | `--no-exclude-dynamic-system-prompt-sections` | Disable `--exclude-dynamic-system-prompt-sections` (drops dynamic prompt sections). See below | n/a |
 | `--no-skip-permissions` | Disable `--dangerously-skip-permissions`. See below | n/a |
@@ -99,7 +99,7 @@ claude --api local --no-bare
 claude --api local --sandbox --no-bare
 ```
 
-**Ollama unloads the model when `claude` exits.** The wrapper runs
+**With `--engine ollama`, Ollama unloads the model when `claude` exits.** The wrapper runs
 `ollama stop <model>` on exit, so the model's memory (about 45 GB for
 `qwen3-coder` at a 262144 context) is freed at once instead of after
 `OLLAMA_KEEP_ALIVE`. Another session that uses the same model keeps working:
@@ -133,16 +133,17 @@ flag (accepts `default`, `acceptEdits`, `plan`, `bypassPermissions`), e.g.
 `--dangerously-skip-permissions` in a sandboxed mode. If both are present,
 skip-permissions takes precedence.
 
-### llama.cpp (`--api local --engine llamacpp`)
+### llama.cpp (the default `--api local` engine)
 
-`--engine llamacpp` sends `--api local` requests to llama.cpp's `llama-server`
-instead of Ollama. Everything else about `--api local` stays the same,
-including the `--bare` and `--exclude-dynamic-system-prompt-sections` defaults.
+`--api local` sends requests to llama.cpp's `llama-server` by default. Use
+`--engine ollama` to send them to Ollama instead. The `--bare` and
+`--exclude-dynamic-system-prompt-sections` defaults apply to both engines.
+Ollama is still used to download models (`ollama pull`).
 
 ```bash
-claude --api local --engine llamacpp
-claude --api local --engine llamacpp --model qwen2.5-coder:14b
-claude --api local --engine llamacpp --sandbox
+claude --local
+claude --local --model qwen2.5-coder:14b
+claude --local --engine ollama
 ```
 
 **Server lifetime.** If a `llama-server` you started yourself is running, the
@@ -169,7 +170,7 @@ It reads the context window from `/props` and passes it to Claude Code as
 
 | Variable | Default |
 |---|---|
-| `CLAUDE_RUN_LLAMA_SERVER` | `~/Documents/llama.cpp/build/bin/llama-server` |
+| `CLAUDE_RUN_LLAMA_SERVER` | `~/Documents/llama.cpp/build/bin/llama-server`, or `llama-server` on `PATH` (for example from `brew install llama.cpp`) if that file is missing |
 | `CLAUDE_RUN_LLAMACPP_MODEL` | the Ollama GGUF for `--model` |
 | `CLAUDE_RUN_LLAMACPP_CONTEXT` | `65536` |
 
@@ -183,7 +184,7 @@ This needs `curl`, `jq`, and `lsof`.
 
 ### External APIs (hosted `--api` backends)
 
-Besides `local` (Ollama, covered above), `--api` can route Claude Code to a
+Besides `local` (covered above), `--api` can route Claude Code to a
 hosted Anthropic-compatible API. Each backend's environment is set inline per
 invocation and never exported, so backends never leak into each other or into a
 later plain `claude`.
@@ -246,6 +247,7 @@ with `$CLAUDE_RUN_EFFORT`. (The wrapper uses the `--effort` flag, not
 **Context window.** For each backend the wrapper sets
 `CLAUDE_CODE_MAX_CONTEXT_TOKENS` so Claude Code uses the model's real window
 instead of assuming 200K for these unrecognized model names. For `--api local`
+with llama.cpp, the wrapper reads it from the server. With `--engine ollama`
 the value is `$CLAUDE_RUN_LOCAL_CONTEXT` (default `262144`); set it to what your
 Ollama actually serves (`ollama ps` shows the loaded context).
 

@@ -11,9 +11,9 @@
 # USAGE:
 #   claude [native claude args]                                     # cloud (Anthropic)
 #   claude --sandbox [native claude args]                           # cloud, Docker, bypass permissions on
-#   claude --api local [--model <name>] [native claude args]        # Ollama, --bare + --exclude-dynamic-system-prompt-sections on
+#   claude --api local [--model <name>] [native claude args]        # llama.cpp, --bare + --exclude-dynamic-system-prompt-sections on
 #   claude --local [...]                                            # same as --api local
-#   claude --api local --engine llamacpp [native claude args]       # llama-server (port auto-detected) instead of Ollama
+#   claude --api local --engine ollama [native claude args]         # Ollama instead of llama.cpp
 #   claude --api deepseek [native claude args]                      # external API (DeepSeek)
 #   claude --api <backend> --sandbox [native claude args]           # any --api backend, Docker, bypass permissions on
 #
@@ -26,12 +26,12 @@
 #     (any backend). Opt out: --no-skip-permissions
 #
 # BACKENDS (--api <backend>):
-#   local      Ollama on this machine (default model qwen3-coder; --model to change).
+#   local      A model on this machine (default model qwen3-coder; --model to change).
 #              No API key needed. --bare + --exclude-dynamic-system-prompt-sections
 #              default on (local models are slow with the full tool schema).
-#              --engine llamacpp uses llama.cpp's llama-server instead. It uses
-#              a running server if there is one, or starts one for the session
-#              and stops it on exit. Default engine: ollama.
+#              Default engine: llamacpp (llama-server). It uses a running server
+#              if there is one, or starts one for the session and stops it on
+#              exit. --engine ollama uses Ollama instead.
 #   deepseek  DeepSeek's Anthropic-compatible API. Set $DEEPSEEK_API_KEY first.
 #   kimi       Kimi k3 (Moonshot, 1M context). Set $KIMI_API_KEY first.
 #   kimi-k2.7  Kimi k2.7-code (Moonshot, 256K context). Set $KIMI_API_KEY first.
@@ -64,7 +64,7 @@ claude() {
   local model="qwen3-coder"
   local model_set=""
   local api_provider=""
-  local engine="ollama" engine_set=""
+  local engine="llamacpp" engine_set=""
   local bare_flag="--bare"
   local exclude_dynamic_flag="--exclude-dynamic-system-prompt-sections"
   local skip_perms="1"
@@ -152,7 +152,13 @@ claude() {
             local pids server_pid="" tries=1 i
             pids=$(ps -axo pid=,comm= | awk '$2 ~ /(^|\/)llama-server$/ && $2 !~ /Ollama\.app/ {print $1}' | paste -sd, -)
             if [[ -z "$pids" ]]; then
-              local server_bin="${CLAUDE_RUN_LLAMA_SERVER:-$HOME/Documents/llama.cpp/build/bin/llama-server}"
+              # Prefer the repo build; fall back to one on PATH (brew install
+              # llama.cpp) if the repo moved, was removed, or is mid-rebuild.
+              local server_bin="$CLAUDE_RUN_LLAMA_SERVER"
+              if [[ -z "$server_bin" ]]; then
+                server_bin="$HOME/Documents/llama.cpp/build/bin/llama-server"
+                [[ -x "$server_bin" ]] || server_bin="$(command -v llama-server)"
+              fi
               # Default: the GGUF that Ollama downloaded for --model. Read the
               # manifest directly, so Ollama does not need to be running.
               local gguf="$CLAUDE_RUN_LLAMACPP_MODEL"
@@ -166,7 +172,7 @@ claude() {
                 [[ -n "$digest" ]] && gguf="$store/blobs/${digest/:/-}"
               fi
               if [[ ! -x "$server_bin" ]]; then
-                echo "claude: llama-server not found at $server_bin (build llama.cpp or set CLAUDE_RUN_LLAMA_SERVER)" >&2
+                echo "claude: llama-server not found (build ~/Documents/llama.cpp, brew install llama.cpp, or set CLAUDE_RUN_LLAMA_SERVER)" >&2
                 return 1
               fi
               if [[ ! -f "$gguf" ]]; then
