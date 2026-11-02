@@ -99,6 +99,13 @@ claude --api local --no-bare
 claude --api local --sandbox --no-bare
 ```
 
+**Ollama unloads the model when `claude` exits.** The wrapper runs
+`ollama stop <model>` on exit, so the model's memory (about 45 GB for
+`qwen3-coder` at a 262144 context) is freed at once instead of after
+`OLLAMA_KEEP_ALIVE`. Another session that uses the same model keeps working:
+Ollama loads it again on that session's next request. If the shell dies
+without exiting normally, `OLLAMA_KEEP_ALIVE` still unloads it later.
+
 **`--exclude-dynamic-system-prompt-sections` is on by default whenever
 `--api local` is used** (`claude --api local` and `claude --api local --sandbox`),
 dropping the dynamic (per-run) sections of Claude Code's system prompt to keep
@@ -150,8 +157,8 @@ first, the other session loses its server.
 
 **Model.** The wrapper loads the GGUF file that Ollama downloaded for
 `--model` (default `qwen3-coder`). It reads Ollama's manifest files directly,
-so Ollama does not need to be running. If Ollama has the same model loaded,
-both hold it in memory: run `ollama stop qwen3-coder` or quit Ollama.
+so Ollama does not need to be running. Before it starts the server, it runs
+`ollama stop <model>` so the model is not held in memory twice.
 
 **Port and context.** The wrapper asks macOS which port the server listens
 on, because the default changed between llama.cpp versions (8080, then 9931).

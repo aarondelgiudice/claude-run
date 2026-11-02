@@ -140,6 +140,10 @@ claude() {
             # the default matches qwen3-coder's served window. Claude Code
             # otherwise assumes 200k for this unrecognized model.
             api_max_context="${CLAUDE_RUN_LOCAL_CONTEXT:-262144}"
+            # Unload the model when claude exits instead of holding its memory
+            # for OLLAMA_KEEP_ALIVE. Ollama reloads it on the next request, so
+            # another session using the same model keeps working.
+            trap "ollama stop ${(q)model} >/dev/null 2>&1" EXIT
             ;;
           llamacpp)
             # Use a llama-server you started yourself if one is running, and
@@ -171,6 +175,8 @@ claude() {
               fi
               local log_file="${XDG_CACHE_HOME:-$HOME/.cache}/claude-run/llama-server.log"
               mkdir -p "${log_file:h}"
+              # Free Ollama's copy of the same model, or both hold it in memory.
+              ollama stop "$model" >/dev/null 2>&1
               echo "claude: starting llama-server (log: $log_file)" >&2
               "$server_bin" -m "$gguf" --jinja -fa on --alias "$model" \
                 -c "${CLAUDE_RUN_LLAMACPP_CONTEXT:-65536}" >"$log_file" 2>&1 &!
